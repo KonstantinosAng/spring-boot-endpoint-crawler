@@ -2,7 +2,9 @@
 
 <br />
 
-## **This repo is not completed yet, thus bugs are real 😁**
+<div align="center">
+<h2>This repo is not completed yet, thus bugs are real 😁 </h2>
+</div>
 
 <br />
 
