@@ -52,7 +52,10 @@ def print_format_body_params(target, line, file_content):
 				format_pos += x
 		request_body_formatted = format_pos[:-1].replace(target, "").strip()
 	else:
-		request_body_formatted = " ".join(x.strip() for x in request_body_raw.split("\n")).replace(target, "").strip()
+		if request_body_raw.count("@") > 1:
+			request_body_formatted = request_body_raw.split(",")[0].replace(target, "").strip()
+		else:
+			request_body_formatted = " ".join(x.strip() for x in request_body_raw.split("\n")).replace(target, "").strip()
 	print(printMap[target], request_body_formatted)
 
 if __name__ == '__main__':
