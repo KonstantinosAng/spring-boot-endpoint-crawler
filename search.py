@@ -18,11 +18,11 @@ printMap = {
 
 def format_line(l, method, base):
 	formatted_line = l.replace(method, "").replace("(", "").replace(")", "").replace("value", "").replace("=", "").strip()
-	if base:
-		if formatted_line[1] == '/' and base[-2] == "/": parsed_line = base[:-2] + formatted_line[1:]
-		else: parsed_line = base[:-1] + formatted_line[1:]
-	else:
-		parsed_line = formatted_line
+	# if base:
+	# 	if formatted_line[1] == '/' and base[-2] == "/": parsed_line = base[:-2] + formatted_line[1:]
+	# 	else: parsed_line = base[:-1] + formatted_line[1:]
+	# else:
+	parsed_line = formatted_line
 	return parsed_line
 
 def print_format(target, line, base=None):
