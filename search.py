@@ -1,4 +1,4 @@
-import glob, os, sys, re, os
+import glob, os, sys, os, datetime, uuid, json
 
 clear = lambda: os.system('cls' if os.name=='nt' else 'clear')
 
@@ -23,6 +23,11 @@ endpoints = []
 printMap = {
   "@RequestMapping": "  [BASE]: ", "@PostMapping": "  -- [POST]: ", "@GetMapping": "  -- [GET]: ", "@PutMapping": "  -- [PUT]: ",
 	"@DeleteMapping": "  -- [DELETE]: ", "@PatchMapping": "  -- [PATCH]: ", "@RequestParam": "  ---- [PARAM]: ", "@RequestBody": "  ---- [BODY]: "
+}
+
+methodMap = {
+	"@PostMapping": "POST", "@GetMapping": "GET", "@PutMapping": "PUT",
+	"@DeleteMapping": "DELETE", "@PatchMapping": "PATCH"
 }
 
 def format_line(l, method, base):
@@ -142,38 +147,123 @@ if __name__ == '__main__':
 
 	clear()
 
-	while True:
+	option = input("Search or Export: ")
 
-		text_input = input("\n Search something (* for all): ")
+	while option.lower() not in ['export', 'search']:
+		print("type search or export")
+		option = input("Search or Export: ")
+
+	if option == "search":
+
+		while True:
+
+			text_input = input("\n Search something (* for all): ")
+			
+			clear()
+
+			print("\n")
+					
+			""" Multi module project """
+			if len(final_modules) > 0:
+				for module in final_modules:
+					if text_input in module or text_input == ALL_SYMBOL:
+						print(f"\n [MODULE] {module} \n")
+					for endpoint in final_modules[module]:
+						if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
+							print_format(endpoint['method'], endpoint["line"], endpoint["base"])
+							for param in endpoint['params']:
+								print(param['type'], param['value'])
+			else:
+				""" Single module project """
+
+				for file in files:
+						if os.path.isfile(file) and file.endswith(pomModule):
+							try:
+									module = file.replace(f"\{pomModule}", "").split("\\")[-1]
+									if text_input in f"\n [MODULE] {module} \n\n" or text_input == ALL_SYMBOL:
+										print(f"\n [MODULE] {module} \n")
+							except Exception as e:
+								pass
+
+				for endpoint in endpoints:
+						if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
+							print_format(endpoint['method'], endpoint["line"], endpoint["base"])
+							for param in endpoint['params']:
+								print(param['type'], param['value'])
 		
-		clear()
+	else:
 
-		print("\n")
-				
 		""" Multi module project """
 		if len(final_modules) > 0:
 			for module in final_modules:
-				if text_input in module or text_input == ALL_SYMBOL:
-					print(f"\n [MODULE] {module} \n")
+				export_json = {
+					"client": "Thunder Client",
+					"collectionName": module,
+					"dateExported": str(datetime.datetime.today()),
+					"version": "1.1",
+					"requests": []
+				}
+				col_id = str(uuid.uuid4())
 				for endpoint in final_modules[module]:
-					if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
-						print_format(endpoint['method'], endpoint["line"], endpoint["base"])
-						for param in endpoint['params']:
-							print(param['type'], param['value'])
+						path = print_format(endpoint['method'], endpoint["line"], endpoint["base"], print_value=False)
+						body_params = {x['value'].split(" ")[-1]: "" for x in endpoint['params'] if x['type'] == printMap[targetBody]}
+						export_json['requests'].append({
+							"_id": str(uuid.uuid4()),
+							"colId": col_id,
+							"containerId": "",
+							"name": "http://localhost:3000/api/v1/sendOrder",
+							"url": "{{{{{}-api}}}}{}".format(module, path.replace('"', '')),
+							"method": methodMap[endpoint["method"]],
+							"created": str(datetime.datetime.today()),
+							"modified": str(datetime.datetime.today()),
+							"headers": [],
+							"params": "",
+							"body": {
+								"type": "json",
+								"raw": json.dumps(body_params, separators=(',', ':')),
+								"form": []
+							},
+						})
+				with open(f"{module}.json", "w") as outfile: outfile.write(json.dumps(export_json, indent=2))
 		else:
+
 			""" Single module project """
 
 			for file in files:
 					if os.path.isfile(file) and file.endswith(pomModule):
 						try:
 								module = file.replace(f"\{pomModule}", "").split("\\")[-1]
-								if text_input in f"\n [MODULE] {module} \n\n" or text_input == ALL_SYMBOL:
-									print(f"\n [MODULE] {module} \n")
+								export_json = {
+									"client": "Thunder Client",
+									"collectionName": module,
+									"dateExported": str(datetime.datetime.today()),
+									"version": "1.1",
+									"requests": []
+								}
 						except Exception as e:
 							pass
-
+			col_id = str(uuid.uuid4())
+			
 			for endpoint in endpoints:
-					if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
-						print_format(endpoint['method'], endpoint["line"], endpoint["base"])
-						for param in endpoint['params']:
-							print(param['type'], param['value'])
+				path = print_format(endpoint['method'], endpoint["line"], endpoint["base"], print_value=False)
+				body_params = {x['value'].split(" ")[-1]: "" for x in endpoint['params'] if x['type'] == printMap[targetBody]}
+				export_json['requests'].append({
+							"_id": str(uuid.uuid4()),
+							"colId": col_id,
+							"containerId": "",
+							"name": "http://localhost:3000/api/v1/sendOrder",
+							"url": "{{{{{}-api}}}}{}".format(module, path.replace('"', '')),
+							"method": methodMap[endpoint["method"]],
+							"created": str(datetime.datetime.today()),
+							"modified": str(datetime.datetime.today()),
+							"headers": [],
+							"params": "",
+							"body": {
+								"type": "json",
+								"raw": json.dumps(body_params, separators=(',', ':')),
+								"form": []
+							},
+						})
+					
+			with open(f"{module}.json", "w") as outfile: outfile.write(json.dumps(export_json, indent=2))
+			
