@@ -153,13 +153,35 @@ def export_postman():
 		
 		export_json_to_file(module, export_json)
 
+def print_params(endpoint): 
+	for param in endpoint['params']:	print(param['type'], param['value'])
+
+def check_if_match_with_params(endpoint):
+	match_with_params = False
+	for param in endpoint['params']:	
+		if text_input in f"{param['type']} {param['value']}":
+			match_with_params = True
+		
+		if match_with_params: break
+	return match_with_params
+
 def filter_and_print_values():
 	for module in modules:
+		
 		if text_input in module or text_input == ALL_SYMBOL:	print(f"\n [MODULE] {module} \n")
+		
 		for endpoint in modules[module]:
+			""" Match with endpoint """
 			if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
 				print_format(endpoint['method'], endpoint["line"], endpoint["base"])
-				for param in endpoint['params']:	print(param['type'], param['value'])
+				print_params(endpoint)
+				continue
+
+			match_with_params = check_if_match_with_params(endpoint)
+			
+			if match_with_params:
+				print_format(endpoint['method'], endpoint["line"], endpoint["base"])
+				print_params(endpoint)
 
 def format_line(l, method, base):
 	formatted_line = l.replace(method, "").replace("(", "").replace(")", "").replace("value", "").replace("=", "").strip()
@@ -300,7 +322,9 @@ if __name__ == '__main__':
 
 		while True:
 
-			text_input = input("\n Search something (* for all): ")
+			text_input = input("\n Search something (* for all, q for quit): ")
+
+			if text_input.lower() == "q": sys.exit(1)
 			
 			clearTerminal()
 
