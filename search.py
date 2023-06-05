@@ -1,6 +1,5 @@
 import glob, os, sys, os, datetime, uuid, json
-from optparse import OptionParser, Option, OptionValueError
-from copy import copy
+from optparse import OptionParser
 
 clearTerminal = lambda: os.system('cls' if os.name=='nt' else 'clear')
 
@@ -34,17 +33,6 @@ methodMap = {
 	TARGET_POST: "POST", TARGET_GET: "GET", TARGET_PUT: "PUT", 
 	TARGET_DELETE: "DELETE", TARGET_PATCH: "PATCH"
 }
-
-def check_bool(option, opt, value):
-	try:
-		return bool(value)
-	except ValueError:
-		raise OptionValueError("option %s: invalid bool value: %r" % (opt, value))
-
-class Bool (Option):
-	TYPES = Option.TYPES + ("bool",)
-	TYPE_CHECKER = copy(Option.TYPE_CHECKER)
-	TYPE_CHECKER["bool"] = check_bool
 
 def find_target(line):
 	if TARGET_POST in line: return TARGET_POST
@@ -288,11 +276,11 @@ def parse_project(files):
 
 if __name__ == '__main__':
 
-	parser = OptionParser(option_class=Bool)
-	parser.add_option('-f', '--path', action='store', default=ABSOLUTE_PATH, type='string', dest='path', help='String: path to repository')
-	parser.add_option('-s', '--search', action='store', default=False, type='bool', dest='search', help='Boolean: pass to search in api endpoints')
-	parser.add_option('-t', '--export-thunder', action='store', default=False, type='bool', dest='export_thunder', help='Boolean: pass to export endpoints in thunder client json format')
-	parser.add_option('-p', '--export-postman', action='store', default=False, type='bool', dest='export_postman', help='Boolean: pass to export endpoints in thunder client json format')
+	parser = OptionParser()
+	parser.add_option('-f', '--path', action='store', default=ABSOLUTE_PATH, type='string', dest='path', help='[String] Path to repository')
+	parser.add_option('-s', '--search', action='store_true', dest='search', help='Search in api endpoints in every module found')
+	parser.add_option('-t', '--export-thunder', action='store_true', dest='export_thunder', help='Export endpoints in thunder client json format')
+	parser.add_option('-p', '--export-postman', action='store_true', dest='export_postman', help='Export endpoints in postman json format')
 
 	(options, args) = parser.parse_args()
 
