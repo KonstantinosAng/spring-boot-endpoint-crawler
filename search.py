@@ -94,8 +94,8 @@ def get_thunder_json_request(col_id, module, path, endpoint, body_params):
 		},
 	}
 
-def export_thunder_multi():
-	""" Multi module project """
+def export_thunder():
+
 	for module in modules:
 		
 		export_json = get_thunder_json_start(module)
@@ -110,55 +110,13 @@ def export_thunder_multi():
 
 		export_json_to_file(module, export_json)
 
-def export_thunder_single(files):
-	""" Single module project """
-	export_json = {}
-	module = ""
-	for file in files:
-		if os.path.isfile(file) and file.endswith(POM_MODULE):
-			try:
-				module = file.replace(f"\{POM_MODULE}", "").split("\\")[-1]
-				export_json = get_thunder_json_start(module)
-			except Exception as e: pass
-
-	col_id = str(uuid.uuid4())
-	
-	for endpoint in endpoints:
-		path = print_format(endpoint['method'], endpoint["line"], endpoint["base"], print_value=False)
-		body_params = {x['value'].split(" ")[-1]: "" for x in endpoint['params'] if x['type'] == printMap[TARGET_BODY]}
-		export_json['requests'].append(get_thunder_json_request(col_id, module, path, endpoint, body_params))
-		
-	export_json_to_file(module, export_json)
-
-def export_thunder(files):
-
-	if len(modules) > 0: export_thunder_multi()
-	
-	else: export_thunder_single(files)
-
-def filter_and_print_values(files):
-	""" Multi module project """
-	if len(modules) > 0:
-		for module in modules:
-			if text_input in module or text_input == ALL_SYMBOL:	print(f"\n [MODULE] {module} \n")
-			for endpoint in modules[module]:
-				if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
-					print_format(endpoint['method'], endpoint["line"], endpoint["base"])
-					for param in endpoint['params']:	print(param['type'], param['value'])
-	else:
-		""" Single module project """
-		for file in files:
-				if os.path.isfile(file) and file.endswith(POM_MODULE):
-					try:
-							module = file.replace(f"\{POM_MODULE}", "").split("\\")[-1]
-							if text_input in f"\n [MODULE] {module} \n\n" or text_input == ALL_SYMBOL:	print(f"\n [MODULE] {module} \n")
-					except Exception as e:
-						pass
-
-		for endpoint in endpoints:
-				if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
-					print_format(endpoint['method'], endpoint["line"], endpoint["base"])
-					for param in endpoint['params']:	print(param['type'], param['value'])
+def filter_and_print_values():
+	for module in modules:
+		if text_input in module or text_input == ALL_SYMBOL:	print(f"\n [MODULE] {module} \n")
+		for endpoint in modules[module]:
+			if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
+				print_format(endpoint['method'], endpoint["line"], endpoint["base"])
+				for param in endpoint['params']:	print(param['type'], param['value'])
 
 def format_line(l, method, base):
 	formatted_line = l.replace(method, "").replace("(", "").replace(")", "").replace("value", "").replace("=", "").strip()
@@ -207,7 +165,12 @@ def find_paths_in_controller(file, file_content):
 			"fileName": file.split("\\")[-1], "method": target, 'params': [] 
 		})
 
-def create_final_modules():
+def create_final_modules(files):
+	if len(modules) <= 0:
+		for file in files:
+			if os.path.isfile(file) and file.endswith(POM_MODULE):
+				modules[file.replace(f"\{POM_MODULE}", "").split("\\")[-1]] = []
+
 	for endpoint in endpoints:
 		for module in modules:
 			if module in endpoint['filePath']:
@@ -263,7 +226,7 @@ def parse_project(files):
 			except Exception:
 				pass
 
-	create_final_modules()
+	create_final_modules(files)
 	
 	return modules
 
@@ -300,11 +263,11 @@ if __name__ == '__main__':
 
 			print("\n")
 					
-			filter_and_print_values(files)
+			filter_and_print_values()
 		
 	elif options.export_thunder:
 
-		export_thunder(files)
+		export_thunder()
 			
 
 	elif options.export_postman:
