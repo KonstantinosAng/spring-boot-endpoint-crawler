@@ -59,9 +59,15 @@ def find_target(line):
 
 def parse_module(line): return line.replace("<module>", "").replace("</module>", "").strip()
 
-def parse_url(module, path): return "{{{{{}-api}}}}{}".format(module, path.replace('"', ''))
+def parse_path(path): return path.replace('"', '')
+
+def parse_module_env_variable(module): return "{{{{{}-api}}}}".format(module)
+
+def parse_url(module, path): return "{}{}".format(parse_module_env_variable(module), path.replace('"', ''))
 
 def parse_params(body_params): return json.dumps(body_params, separators=(',', ':'))
+
+def path_as_array(path): return [x for x in path.split("/") if x != "" and x != "\""]
 
 def export_json_to_file(module, export_json): 
 	with open(f"{module}.json", "w") as outfile: outfile.write(json.dumps(export_json, indent=2))
@@ -108,6 +114,55 @@ def export_thunder():
 			
 			export_json['requests'].append(get_thunder_json_request(col_id, module, path, endpoint, body_params))
 
+		export_json_to_file(module, export_json)
+
+def get_postman_json_info(module):
+	return {
+		"info": {
+			"_postman_id": str(uuid.uuid4()),
+			"name": module,
+			"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		},
+		"item": []
+	}
+
+def get_postman_json_item(module, path, endpoint, body_params):
+	return {
+		"name": parse_url(module, path),
+		"request": {
+			"method": methodMap[endpoint["method"]],
+			"header": [],
+			"body": {
+					"mode": "raw",
+					"raw": parse_params(body_params),
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+			"url": {
+					"raw": parse_url(module, path),
+					"host": parse_module_env_variable(module),
+					"path": path_as_array(path)
+				},
+			"description": ""
+		},
+		"response": []
+	}
+
+def export_postman():
+	for module in modules:
+		
+		export_json = get_postman_json_info(module)
+
+		for endpoint in modules[module]:
+			path = print_format(endpoint['method'], endpoint["line"], endpoint["base"], print_value=False)
+			body_params = {x['value'].split(" ")[-1]: "" for x in endpoint['params'] if x['type'] == printMap[TARGET_BODY]}
+			export_json["item"].append(
+				get_postman_json_item(module, path, endpoint, body_params)
+			)
+		
 		export_json_to_file(module, export_json)
 
 def filter_and_print_values():
@@ -272,7 +327,7 @@ if __name__ == '__main__':
 
 	elif options.export_postman:
 
-		print("coming soon")
+		export_postman()
 	
 	else:
 		print("pass --help to see the available options")
