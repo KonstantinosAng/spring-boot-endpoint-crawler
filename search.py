@@ -167,12 +167,18 @@ def check_if_match_with_params(endpoint):
 
 def filter_and_print_values():
 	for module in modules:
+		print_module_name = False
 		
-		if text_input in module or text_input == ALL_SYMBOL:	print(f"\n [MODULE] {module} \n")
+		if text_input in module or text_input == ALL_SYMBOL:	
+			print(f"\n [MODULE] {module} \n")
+			print_module_name = True
 		
 		for endpoint in modules[module]:
 			""" Match with endpoint """
 			if text_input in f"{printMap[endpoint['method']]} {format_line(endpoint['line'], endpoint['method'], endpoint['base'])} \n" or text_input == ALL_SYMBOL:
+				if not print_module_name: 
+					print(f"\n [MODULE] {module} \n")
+					print_module_name = True
 				print_format(endpoint['method'], endpoint["line"], endpoint["base"])
 				print_params(endpoint)
 				continue
