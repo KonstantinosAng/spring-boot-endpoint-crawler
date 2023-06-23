@@ -24,6 +24,7 @@ VALUE = "@Value"
 NO_ARGS_CONSTRUCTOR = "@NoArgsConstructor"
 ALL_ARGS_CONSTRUCTOR = "@AllArgsConstructor"
 SERVICE = "@Service"
+BUILDER = "@Builder"
 PUBLIC = "public"
 CLASS = "class"
 STRING = "string"
@@ -191,7 +192,7 @@ def print_dto(endpoint):
 				print(" " * PARAMS_SPACE)
 
 def check_if_dto_structure(val):
-	return (SETTER in val or GETTER in val or VALUE in val) and SERVICE not in val
+	return (SETTER in val or GETTER in val or VALUE in val or BUILDER in val) and SERVICE not in val
 
 def check_if_match_with_params(endpoint):
 	match_with_params = False
