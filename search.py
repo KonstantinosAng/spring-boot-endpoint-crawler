@@ -29,6 +29,11 @@ CLASS = "class"
 STRING = "string"
 BOOLEAN = "boolean"
 MAP = "map"
+LIST = "list"
+DATE = "date"
+LONG = "long"
+INT = "int"
+FLOAT = "float"
 
 PARAMS_SPACE = 16
 
@@ -171,15 +176,22 @@ def export_postman():
 def print_params(endpoint): 
 	for param in endpoint['params']:	print(param['type'], param['value'])
 
+def check_if_param_is_native_value(param):
+	value = param.lower()
+	return value in [STRING, BOOLEAN, MAP, LIST, DATE, LONG, INT, FLOAT]
+
 def print_dto(endpoint):
 	for param in endpoint['params']:
-		if STRING in param['value'].lower() or BOOLEAN in param['value'].lower() or MAP in param['value'].lower(): continue
+		if check_if_param_is_native_value(param['value']): continue
 		words = param['value'].split(" ")
 		for word in words:
 			if word in dto: 
 				print(" " * PARAMS_SPACE + f"{word} {{")
 				print(f"{dto[word]}")
-				print(" " * PARAMS_SPACE + f"}}")
+				print(" " * PARAMS_SPACE)
+
+def check_if_dto_structure(val):
+	return (SETTER in val or GETTER in val or VALUE in val) and SERVICE not in val
 
 def check_if_match_with_params(endpoint):
 	match_with_params = False
@@ -194,7 +206,7 @@ def filter_and_print_values(text_input):
 	for module in modules:
 		print_module_name = False
 		
-		if text_input in module or text_input == ALL_SYMBOL:	
+		if text_input in module or text_input == ALL_SYMBOL and len(modules[module]) > 0:	
 			print(f"\n [MODULE] {module} \n")
 			print_module_name = True
 		
@@ -224,7 +236,8 @@ def filter_and_print_values(text_input):
 				print_dto(endpoint)
 
 def format_line(l, method, base):
-	formatted_line = l.replace(method, "").replace("(", "").replace(")", "").replace("value", "").replace("=", "").strip()
+	formatted_line = l.replace(method, "").replace("(", "").replace(")", "").replace("value", "").replace("=", "").replace(",", "").strip()
+	if (formatted_line.strip()) == "": return base
 	if base:
 		if formatted_line[1] == '/' and base[-2] == "/": parsed_line = base[:-2] + formatted_line[1:]
 		else: parsed_line = base[:-1] + formatted_line[1:]
@@ -244,18 +257,17 @@ def find_modules(file_content):
 
 def find_paths_in_controller(file, file_content):
 	base = ""
-
 	for i, line in enumerate(file_content.split("\n")):
 
 		target = find_target(line)
-		
 		if target == "": continue
-		
+
 		if TARGET_BASE in line:
 			base = print_format(TARGET_BASE, line, print_value=False)
 			continue
 
 		if TARGET_PARAM in line or TARGET_BODY in line:
+
 			param = print_format_body_params(target, line, file_content, print_value=False)
 			for i, x in enumerate(endpoints):
 				if x['path'] == endpoint:
@@ -263,7 +275,6 @@ def find_paths_in_controller(file, file_content):
 					temp_endpoint['params'].append(param)
 					endpoints[i] = temp_endpoint
 			continue
-			
 		endpoint = print_format(target, line, base, print_value=False)
 		endpoints.append({ 
 			"path": endpoint, "line": line, "base": base, "filePath": file, 
@@ -273,18 +284,22 @@ def find_paths_in_controller(file, file_content):
 def parse_class_dto_name(line):
 	return line.replace("public", "").replace("class", "").replace("static", "").strip().split(" ")[0]
 
-def parse_dto(file_content):
+def parse_dto(file_content, stop_at_curly = False):
 	found_dto_name = False
 	dto_name = ""
 	dto_structure = []
+
 	for i, line in enumerate(file_content.split("\n")):
-		if CLASS in line:
+		if CLASS in line and not found_dto_name:
 			found_dto_name = True
 			dto_name = parse_class_dto_name(line)
 			continue
 		
-		if found_dto_name and "}" not in line:
+		if found_dto_name and line.strip() != "" and not line.startswith("/") and not "*" in line and GETTER not in line and SETTER not in line and ALL_ARGS_CONSTRUCTOR not in line and NO_ARGS_CONSTRUCTOR not in line:
+			if check_if_dto_structure(line): parse_dto(file_content[file_content.find(line):], stop_at_curly = True)
 			dto_structure.append(" " * PARAMS_SPACE + f"{line}")
+		
+		if stop_at_curly and "}" in line: break
 	
 	dto[dto_name] = "\n".join(dto_structure)
 
@@ -346,12 +361,12 @@ def parse_project(files):
 			continue
 		
 		try:
-			with open(file, 'r') as f:
+			with open(file, 'r', encoding='utf8', errors='ignore') as f:
 				file_content = f.read()
 				if file.endswith(POM_MODULE) and MODULES_OPEN_TAG in file_content:	find_modules(file_content)
 				if TARGET_BASE in file_content:	find_paths_in_controller(file, file_content)
-				if (SETTER in file_content or GETTER in file_content or VALUE in file_content) and SERVICE not in file_content: parse_dto(file_content)
-		except Exception:
+				if check_if_dto_structure(file_content): parse_dto(file_content)
+		except Exception as e:
 			pass
 
 	create_final_modules(files)
@@ -373,7 +388,7 @@ if __name__ == '__main__':
 	if not os.path.exists(options.path): sys.exit("Path does not exist")
 	
 	files = glob.glob(options.path + '/**/*[.java,.xml]', recursive=True)
-	
+
 	parse_project(files)
 
 	if len(endpoints) <= 0: 
