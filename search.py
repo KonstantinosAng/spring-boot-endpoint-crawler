@@ -9,6 +9,7 @@ ALL_SYMBOL = "*"
 POM_MODULE = "pom.xml"
 MODULES_OPEN_TAG = "<modules>"
 MODULES_CLOSE_TAG = "</modules>"
+COMMENT_POM_MODULE = "<!--"
 TARGET_BASE = "@RequestMapping"
 TARGET_POST = "@PostMapping"
 TARGET_GET = "@GetMapping"
@@ -17,11 +18,25 @@ TARGET_DELETE = "@DeleteMapping"
 TARGET_PATCH = "@PatchMapping"
 TARGET_PARAM = "@RequestParam"
 TARGET_BODY = "@RequestBody"
+SETTER = "@Setter"
+GETTER = "@Getter"
+VALUE = "@Value"
+NO_ARGS_CONSTRUCTOR = "@NoArgsConstructor"
+ALL_ARGS_CONSTRUCTOR = "@AllArgsConstructor"
+SERVICE = "@Service"
+PUBLIC = "public"
+CLASS = "class"
+STRING = "string"
+BOOLEAN = "boolean"
+MAP = "map"
+
+PARAMS_SPACE = 16
 
 THUNDER_CLIENT = "Thunder Client"
 
 modules = {}
 endpoints = []
+dto = {}
 
 printMap = {
   TARGET_BASE: "  [BASE]: ", TARGET_POST: "  -- [POST]: ", TARGET_GET: "  -- [GET]: ", 
@@ -156,6 +171,16 @@ def export_postman():
 def print_params(endpoint): 
 	for param in endpoint['params']:	print(param['type'], param['value'])
 
+def print_dto(endpoint):
+	for param in endpoint['params']:
+		if STRING in param['value'].lower() or BOOLEAN in param['value'].lower() or MAP in param['value'].lower(): continue
+		words = param['value'].split(" ")
+		for word in words:
+			if word in dto: 
+				print(" " * PARAMS_SPACE + f"{word} {{")
+				print(f"{dto[word]}")
+				print(" " * PARAMS_SPACE + f"}}")
+
 def check_if_match_with_params(endpoint):
 	match_with_params = False
 	for param in endpoint['params']:	
@@ -165,7 +190,7 @@ def check_if_match_with_params(endpoint):
 		if match_with_params: break
 	return match_with_params
 
-def filter_and_print_values():
+def filter_and_print_values(text_input):
 	for module in modules:
 		print_module_name = False
 		
@@ -181,6 +206,11 @@ def filter_and_print_values():
 					print_module_name = True
 				print_format(endpoint['method'], endpoint["line"], endpoint["base"])
 				print_params(endpoint)
+
+				if text_input == ALL_SYMBOL: continue
+				
+				print_dto(endpoint)
+				
 				continue
 
 			match_with_params = check_if_match_with_params(endpoint)
@@ -188,6 +218,10 @@ def filter_and_print_values():
 			if match_with_params:
 				print_format(endpoint['method'], endpoint["line"], endpoint["base"])
 				print_params(endpoint)
+				
+				if text_input == ALL_SYMBOL: continue
+				
+				print_dto(endpoint)
 
 def format_line(l, method, base):
 	formatted_line = l.replace(method, "").replace("(", "").replace(")", "").replace("value", "").replace("=", "").strip()
@@ -205,7 +239,7 @@ def find_modules(file_content):
 	found_modules_open_tag = False
 	for line in file_content.split("\n"):
 		if MODULES_CLOSE_TAG in line:	found_modules_open_tag = False
-		if found_modules_open_tag:	modules[parse_module(line)] = []
+		if found_modules_open_tag and COMMENT_POM_MODULE not in line:	modules[parse_module(line)] = []
 		if MODULES_OPEN_TAG in line:	found_modules_open_tag = True
 
 def find_paths_in_controller(file, file_content):
@@ -235,6 +269,25 @@ def find_paths_in_controller(file, file_content):
 			"path": endpoint, "line": line, "base": base, "filePath": file, 
 			"fileName": file.split("\\")[-1], "method": target, 'params': [] 
 		})
+
+def parse_class_dto_name(line):
+	return line.replace("public", "").replace("class", "").replace("static", "").strip().split(" ")[0]
+
+def parse_dto(file_content):
+	found_dto_name = False
+	dto_name = ""
+	dto_structure = []
+	for i, line in enumerate(file_content.split("\n")):
+		if CLASS in line:
+			found_dto_name = True
+			dto_name = parse_class_dto_name(line)
+			continue
+		
+		if found_dto_name and "}" not in line:
+			dto_structure.append(" " * PARAMS_SPACE + f"{line}")
+	
+	dto[dto_name] = "\n".join(dto_structure)
+
 
 def create_final_modules(files):
 	if len(modules) <= 0:
@@ -288,14 +341,18 @@ def print_format_body_params(target, line, file_content, print_value = True):
 
 def parse_project(files):
 	for file in files:
-		if os.path.isfile(file):
-			try:
-				with open(file, 'r') as f:
-					file_content = f.read()
-					if file.endswith(POM_MODULE) and MODULES_OPEN_TAG in file_content:	find_modules(file_content)
-					if TARGET_BASE in file_content:	find_paths_in_controller(file, file_content)
-			except Exception:
-				pass
+
+		if not os.path.isfile(file):
+			continue
+		
+		try:
+			with open(file, 'r') as f:
+				file_content = f.read()
+				if file.endswith(POM_MODULE) and MODULES_OPEN_TAG in file_content:	find_modules(file_content)
+				if TARGET_BASE in file_content:	find_paths_in_controller(file, file_content)
+				if (SETTER in file_content or GETTER in file_content or VALUE in file_content) and SERVICE not in file_content: parse_dto(file_content)
+		except Exception:
+			pass
 
 	create_final_modules(files)
 	
@@ -309,6 +366,7 @@ if __name__ == '__main__':
 	parser.add_option('-s', '--search', action='store_true', dest='search', help='Search in api endpoints in every module found')
 	parser.add_option('-t', '--export-thunder', action='store_true', dest='export_thunder', help='Export endpoints in thunder client json format')
 	parser.add_option('-p', '--export-postman', action='store_true', dest='export_postman', help='Export endpoints in postman json format')
+	parser.add_option('-d', '--dev-mode', action='store_true', dest='dev_mode', help='Pass as empty option')
 
 	(options, args) = parser.parse_args()
 
@@ -336,16 +394,19 @@ if __name__ == '__main__':
 
 			print("\n")
 					
-			filter_and_print_values()
+			filter_and_print_values(text_input)
 		
 	elif options.export_thunder:
 
 		export_thunder()
-			
 
 	elif options.export_postman:
 
 		export_postman()
-	
+
+	elif options.dev_mode:
+
+		...
+		
 	else:
 		print("pass --help to see the available options")
